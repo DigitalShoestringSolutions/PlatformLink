@@ -1,0 +1,59 @@
+{% extends "base.jinja2" %}
+{% block content %}
+<h1>Logs</h1>
+<form action="/logs" name="logForm">
+    <h5 class="text-decoration-underline">Log sources:</h5>
+    <div class="d-flex flex-row flex-wrap justify-content-start">
+        {% for module_name, module_type in streams %}
+        <div class="form-check me-3">
+            <input class="form-check-input" type="radio" name="stream" value="{{module_name}}"
+                id="source-entry-{{loop.index}}" {% if module_name==checked_stream %} checked {% endif %}>
+            <label class="form-check-label" for="source-entry-{{loop.index}}">
+                {{module_name}} ({{module_type}})
+            </label>
+        </div>
+        {% endfor%}
+    </div>
+    <h5 class="text-decoration-underline">Log level:</h5>
+    <div class="d-flex flex-row flex-wrap justify-content-start">
+        {% for level in levels %}
+        <div class="form-check me-3">
+            <input class="form-check-input" type="checkbox" name="level" value="{{level}}"
+                id="level-entry-{{loop.index}}" {% if level in checked_levels %} checked {% endif %}>
+            <label class="form-check-label" for="level-entry-{{loop.index}}">
+                {{level}}
+            </label>
+        </div>
+        {% endfor%}
+    </div>
+    <h5 class="text-decoration-underline">Start from:</h5>
+    <div class="input-group mb-3">
+        <label class="input-group-text" for="date-select">Date</label>
+        <select class="form-select" aria-label="Select Date" name="date" id="date-select">
+            {% for date in dates %}
+            <option value="{{date.strftime('%Y-%m-%d')}}" {% if date==selected_date %} selected {% endif %}>
+                {{date.strftime('%Y-%m-%d')}}</option>
+            {% endfor %}
+        </select>
+        <label class="input-group-text" for="time-select">Time</label>
+        <input type="time" class="form-control" id="time-select" name="time" value="{{selected_time}}" />
+    </div>
+    <button type="submit" class="btn btn-primary mb-3 float-end">Fetch Logs</button>
+</form>
+<table class="table">
+    <thead>
+        <tr>
+            <th scope="col">timestamp</th>
+            <th scope="col">entry</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for log in logs %}
+        <tr>
+            <td>{{log[0].strftime('%Y-%m-%d %H:%M:%S')}}</td>
+            <td>{{log[1]}}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

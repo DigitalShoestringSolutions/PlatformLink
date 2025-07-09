@@ -1,0 +1,168 @@
+{% extends "base.jinja2" %}
+{% block content %}
+<h1>Link to your Organisation on the Shoestring Platform</h1>
+
+{% if linked_to %}
+{# Notice shown if previously linked to an org #}
+<div class="alert alert-success" role="alert">
+    <div>
+        Solution is currently linked to the <span class="text-decoration-underline">{{linked_to.org}}</span>
+        Organisation as <span class="text-decoration-underline">{{linked_to.dep}}</span>.
+    </div>
+    <hr />
+    <div>
+        This page doesn't have a complete picture of the link status - You can check the current link status or
+        unlink the solution on the <a href="https://platform.digitalshoestring.net" target="_blank">Shoestring
+            platform</a>.
+    </div>
+</div>
+{% endif %}
+
+{% if status not in ["linked"]%}
+<div class="card">
+    <div class="card-header">
+        Create new link to Organisation
+    </div>
+    <div class="card-body">
+        {% if status not in ["confirm"] %}
+        {# Input Link Code Form #}
+        <form novalidate action="/link" method="post" accept-charset="utf-8">
+            <label for="linkCodeInput" class="form-label">Link Code</label>
+            <input type="text" class="form-control" id="linkCodeInput" name="link_code" aria-describedby="linkCodeHelp"
+                required placeholder="Enter the 6 digit link code here">
+            <div id="linkCodeHelp" class="form-text">
+                The link code is provided as part of the new deployment process on
+                the <a href="https://platform.digitalshoestring.net" target="_blank">Shoestring
+                    platform</a>
+            </div>
+            <div class="invalid-feedback">
+                A valid link code contains six numbers - for example: 183293
+            </div>
+
+            <div class="text-end mt-2">
+                <button id="submitLinkCodeButton" class="btn btn-primary " type="submit">Submit</button>
+            </div>
+        </form>
+
+        {% if error %}
+        {# If there was an error response when sumbitting form#}
+        <div class="alert alert-danger mt-3" role="alert">
+            {{error}}
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="alert alert-primary mt-3" role="alert">
+            <div>Link code accepted</div>
+            <div>This solution will be linked to the <span class="text-decoration-underline">{{org_name}}</span>
+                organisation as <span class="text-decoration-underline">{{deployment_name}}</span>.</div>
+            <div>
+                If this is correct:
+            </div>
+            <ol>
+                <li>Return to the solution linking process on the Shoestring platform</li>
+                <li>Enter the confirmation code below</li>
+                <li>Return to this page and click <span class="text-decoration-underline">Exchange Token and
+                        Complete</span> below.</li>
+            </ol>
+            <div>
+                If this is not correct:
+            </div>
+            <ul>
+                <li>Click <span class="text-decoration-underline">Cancel</span> below and start the process over.</li>
+            </ul>
+        </div>
+        <div class="d-flex flex-row justify-content-between align-items-baseline">
+            <div>Confirmation Code:</div>
+            <div class="fs-1">
+                <span class="badge text-bg-secondary px-1 py-3" style="width: 60px;">
+                    {{conf_code[0]}}
+                </span>
+                <span class="badge text-bg-secondary ms-2 px-1 py-3" style="width: 60px;">
+                    {{conf_code[1]}}
+                </span>
+            </div>
+            <button id="copy_code_button" class="btn btn-primary" onclick="copyConfCode()">Copy</button>
+        </div>
+        <div id="exchange_alert" class="alert alert-danger mt-3 d-none" role="alert">
+        </div>
+        <div class="vstack gap-1 mt-3">
+            <button class="btn btn-primary" onclick="triggerExchange()">Exchange Token and Complete</button>
+            <button class="btn btn-danger" onclick="triggerCancel()">Cancel</button>
+        </div>
+
+        {% endif%}
+    </div>
+</div>
+{% endif%}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // set initial value when returning from bad post to allow user to correct incorrect code without entering again
+    {% if link_code is defined %}
+    let initial_link_code = {{ link_code }};
+    {% else %}
+    let initial_link_code = "";
+    {% endif %}
+
+    let link_code_input = document.getElementById("linkCodeInput");
+    let link_code_button = document.getElementById("submitLinkCodeButton");
+
+    // make sure code is 6 digits
+    const link_code_valid = (link_code) => (/^[0-9]{6}$/.test(link_code))
+    // handle formatting based on link code validity
+    const handle_link_code_change = (link_code) => {
+        if (!link_code_valid(link_code)) {
+            link_code_input.classList.add("is-invalid")
+            link_code_button.setAttribute("disabled", "true")
+        } else {
+            link_code_input.classList.remove("is-invalid")
+            link_code_button.removeAttribute("disabled")
+        }
+    }
+
+    window.onload = () => {
+        try {
+            link_code_input.value = initial_link_code
+            handle_link_code_change(link_code_input.value)
+        } catch (e) {
+            //ignore
+        }
+    }
+
+    if (link_code_input)
+        link_code_input.addEventListener('input', (evt) => {
+            let value = evt.target.value
+            handle_link_code_change(value)
+        });
+
+    function copyConfCode() {
+        navigator.clipboard.writeText("{{ conf_code }}")
+        document.getElementById("copy_code_button").innerHTML = "Copied";
+    }
+
+    function triggerExchange() {
+        fetch("/link/exchange", { method: "POST" }).then((response) => {
+            if (response.status === 200) {
+                window.location.replace("/link")
+            } else {
+                return response.json()
+            }
+        }).then((payload) => {
+            let exchange_alert = document.getElementById("exchange_alert")
+            exchange_alert.innerHTML = "Error: " + payload?.detail
+            exchange_alert.classList.remove("d-none")
+        })
+    }
+
+    function triggerCancel() {
+        const form = document.createElement('form');
+        form.method = "post";
+        form.action = "/link/cancel";
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+</script>
+{% endblock %}

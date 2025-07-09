@@ -1,0 +1,77 @@
+{% extends "base.jinja2" %}
+{% block content %}
+<h1>Dashboard</h1>
+<div>There will be a dashboard here showing collected uptime and usage data. Also a graph highlighting detected errors
+    by service module from log files.</div>
+<div style="width: 100%;"><canvas id="log_errors"></canvas></div>
+{% endblock %}
+
+{% block scripts %}
+<script src=" https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js "></script>
+<script type="module">
+    (async function () {
+        console.log("ran")
+
+        const labels = [
+            {% for label in labels %}
+                "{{label.strftime('%Y-%m-%d %H:%M')}}",
+            {% endfor%}
+        ]
+
+        const datasets = [
+            {% for result in results %}
+            {
+                label: '{{ result.metric.service_module }} ({{ result.metric.level }})',
+                data: [
+                    {% for entry in result.data %}
+                        {
+                            x: "{{ entry[0].strftime('%Y-%m-%d %H:%M') }}",
+                            y: {{ entry[1] }}
+                        },
+                    {% endfor %}
+                    ]
+            },
+            {% endfor %}
+        ]
+        
+        console.log(labels)
+        console.log(datasets)
+
+        new Chart(
+            document.getElementById('log_errors'),
+            {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options:{
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Logged warnings and errors in the last 24 hours'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            
+                            title: {
+                                display: true,
+                                text: 'timestamp'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'count'
+                            }
+                        }
+                    },
+                }
+            }
+        );
+        }) ();
+</script>
+
+{% endblock %}

@@ -1,0 +1,5 @@
+build: "placeholder"
+# Uncomment below for development against locally running platform
+# environment:
+  # DEBUG: TRUE 
+# command: sh -c "/app/set_host.sh && exec python3 ./main.py"

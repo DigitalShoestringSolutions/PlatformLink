@@ -1,0 +1,21 @@
+{% extends "base.jinja2" %}
+{% block content %}
+<h1>Cancelling Link Process</h1>
+
+{% if result in ["ok"] %}
+{# Notice shown if previously linked to an org #}
+<div class="alert alert-success" role="alert">
+    <div>
+        Link Cancelled.
+    </div>
+</div>
+{% endif %}
+
+{% if result in ["error"] %}
+<div class="alert alert-danger mt-3" role="alert">
+    {{error}}
+</div>
+{% endif %}
+
+
+{% endblock %}

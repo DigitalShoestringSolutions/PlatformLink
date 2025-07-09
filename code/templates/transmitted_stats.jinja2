@@ -1,0 +1,65 @@
+{% extends "base.jinja2" %}
+{% block content %}
+<h1>Transmitted Stats</h1>
+<h5 class="text-decoration-underline">Control Panel:</h5>
+<div class="alert alert-info">
+    <a target="_blank" href="https://platform.digitalshoestring.net/collected_stats#running_stats">Click here</a>
+    for more details about how these statistics are used to provide useful information for Shoestring and how
+    they are used to provide additional functionality and insights for you, your company and any organisations
+    supporting this deployment when you link this solution to you company profile on the Shoestring platform.
+</div>
+<form class="mb-5" action="/stats" method="post" name="statsForm">
+    <div class="form-check form-switch">
+        <input class="form-check-input" name="running" type="checkbox" id="running_switch" {% if running==True %}checked {% endif %}>
+        <label class="form-check-label" for="running_switch">Running Stats</label>
+        <div class="form-text">If enabled the solution sends:
+            <ul class="m-0">
+                <li>a "started" message when it boots</li>
+                <li>periodic "heartbeat" messages every 3 hours while it is running</li>
+                <li>a "stopped" messages when it is stopped in a controlled manner</li>
+            </ul>
+        </div>
+    </div>
+    <div class="form-check form-switch">
+        <input class="form-check-input" name="usage" type="checkbox" id="usage_switch" {% if usage==True %}checked {% endif %}>
+        <label class="form-check-label" for="usage_switch">Solution Usage Stats</label>
+        <div class="form-text">
+            If enabled the solution sends a collection of "usage numbers" grouped into hour buckets.
+            These numbers depend on the type of solution.
+            For Job Tracking the dataset includes the total number of jobs scanned each hour.
+            For Power Monitoring it includes how many times each dashboard is viewed/refreshed.
+            These usage statistics are designed to be as non-sensitive as possible.
+            If you are usure, you can enable usage statistics before the solution is being used in
+            your production operations and then check the log below to see what data is sent to Shoestring.
+        </div>
+        <div class="form-text">
+            Usage statistics for the previous 24 hours are sent when the solution boots and then every 24 hours when
+            running.
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary float-end">Save Settings</button>
+</form>
+<h5 class="text-decoration-underline mt-3">Uploaded data log:</h5>
+<div class="alert alert-secondary">
+    In the interest of full transparency, You can see here a complete record of all of the statistics that have been
+    sent to Shoestring by this solution in the last week
+</div>
+<table class="table">
+    <thead>
+        <tr>
+            <th scope="col">Type</th>
+            <th scope="col">Timestamp</th>
+            <th scope="col">Content</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for entry in upload_logs %}
+        <tr>
+            <td>{{entry.type}}</td>
+            <td>{{entry.timestamp.strftime('%Y-%m-%d %H:%M:%S')}}</td>
+            <td>{{entry.payload}}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
