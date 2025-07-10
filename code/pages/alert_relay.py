@@ -23,7 +23,6 @@ async def increment_stat(request):
         body = {}
 
     id_token = request.app[id_token_key]
-    logger.info(f"<><> {id_token}")
 
     if id_token is None:    # not linked to platform
         return web.json_response({"reason":"not_linked"},status=404)
