@@ -70,6 +70,7 @@ async def task(app):
                 app[upload_running_key] = upload_running_setting=="True"
             else: 
                 app[upload_running_key] = config["default_transmitted_stats"]["running"]
+            logger.info(f"upload_running: {app[upload_running_key]}")
 
             upload_usage_setting = await get_setting(db, "upload_usage")
             logger.debug(f"upload_usage_setting: {upload_usage_setting}")
@@ -77,6 +78,7 @@ async def task(app):
                 app[upload_usage_key] = upload_usage_setting=="True"
             else: 
                 app[upload_usage_key] = config["default_transmitted_stats"]["usage"]
+            logger.info(f"upload_usage: {app[upload_usage_key]}")
 
             scheduler = AsyncIOScheduler()
 

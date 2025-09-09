@@ -8,7 +8,7 @@ logger = logging.getLogger("platform_link.tasks")
 
 send_stats_bg_task_key = web.AppKey("send_stats_bg_task_key", asyncio.Task[None])
 
-async def create_background_task(app):
+async def create_background_task(app: web.Application):
     logger.info("starting bg task")
     app[send_stats_bg_task_key] = asyncio.create_task(upload_stats.task(app))
     app[upload_stats.graceful_exit_key] = asyncio.get_running_loop().create_future()

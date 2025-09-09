@@ -1,4 +1,5 @@
 import aiohttp
+import aiohttp.client_exceptions
 import logging
 import aiohttp_jinja2
 import json
@@ -50,32 +51,35 @@ async def home_page(request):
     }
     logger.debug(f"log quantity params: {params}")
     results = []
-    async with aiohttp.ClientSession() as session:
-        async with session.get(
-            "http://loki.docker.local:3100/loki/api/v1/query_range", params=params
-        ) as resp:
-            if resp.status == 200:
-                resp_body = await resp.json()
-                raw_results = resp_body["data"]["result"]
-                # merged_logs = functools.reduce(reduce_logs, raw_results, [])
-                # merged_logs.sort(key=lambda x: x[0])
-                results = [
-                    {
-                        "metric": entry["metric"],
-                        "data": [
-                            (
-                                datetime.datetime.fromtimestamp(int(value_entry[0])),
-                                value_entry[1],
-                            )
-                            for value_entry in entry["values"]
-                        ],
-                    }
-                    for entry in raw_results
-                ]
-            else:
-                logger.error(
-                    f"Log query returned status:{resp.status} for url: {resp.request_info.url}"
-                )
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                "http://loki.docker.local:3100/loki/api/v1/query_range", params=params
+            ) as resp:
+                if resp.status == 200:
+                    resp_body = await resp.json()
+                    raw_results = resp_body["data"]["result"]
+                    # merged_logs = functools.reduce(reduce_logs, raw_results, [])
+                    # merged_logs.sort(key=lambda x: x[0])
+                    results = [
+                        {
+                            "metric": entry["metric"],
+                            "data": [
+                                (
+                                    datetime.datetime.fromtimestamp(int(value_entry[0])),
+                                    value_entry[1],
+                                )
+                                for value_entry in entry["values"]
+                            ],
+                        }
+                        for entry in raw_results
+                    ]
+                else:
+                    logger.error(
+                        f"Log query returned status:{resp.status} for url: {resp.request_info.url}"
+                    )
+    except aiohttp.client_exceptions.ClientError:
+        pass
 
     now_rounded = now.replace(hour=now.hour + 1, minute=0, second=0, microsecond=0)
 
@@ -100,29 +104,35 @@ async def logs_page(request):
     streams = []
 
     # if streams is None:
-    async with aiohttp.ClientSession() as session:
-        async with session.get(
-            "http://loki.docker.local:3100/loki/api/v1/series",
-        ) as resp:
-            if resp.status == 200:
-                resp_body = await resp.json()
-                try:
-                    streams_dict = {
-                        entry["service_module"]: entry["shoestring_function"]
-                        for entry in resp_body["data"]
-                        if entry.get("shoestring_solution")
-                        == request.app[solution_type_key]
-                    }
-                    streams = [(k, v) for k, v in streams_dict.items()]
-                    streams.sort(
-                        key=lambda x: (1 if x[1] == "infrastructure" else 0, x[0])
-                    )
-                    # request.app[streams_list_cache_key] = streams
-                except:
-                    logger.error("Something went wrong getting series")
-                    logger.error(traceback.format_exc())
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                "http://loki.docker.local:3100/loki/api/v1/series",
+            ) as resp:
+                if resp.status == 200:
+                    resp_body = await resp.json()
+                    try:
+                        streams_dict = {
+                            entry["service_module"]: entry["shoestring_function"]
+                            for entry in resp_body["data"]
+                            if entry.get("shoestring_solution")
+                            == request.app[solution_type_key]
+                        }
+                        streams = [(k, v) for k, v in streams_dict.items()]
+                        streams.sort(
+                            key=lambda x: (1 if x[1] == "infrastructure" else 0, x[0])
+                        )
+                        # request.app[streams_list_cache_key] = streams
+                    except:
+                        logger.error("Something went wrong getting series")
+                        logger.error(traceback.format_exc())
+    except aiohttp.client_exceptions.ClientError:
+        pass
 
-    checked_stream = request.query.get("stream", streams[0][0])
+    checked_stream = request.query.get("stream")
+    if checked_stream is None and len(streams)>0:
+        checked_stream = streams[0][0]
+
     checked_levels = request.query.getall("level", ["warning", "error", "critical"])
     end_date = datetime.date.today()
     dates = [end_date - datetime.timedelta(days=x) for x in range(7)]
@@ -138,37 +148,41 @@ async def logs_page(request):
         datetime.time.fromisoformat(selected_time),
         tzinfo=tz,
     )
-
-    # TODO: could use sort metic aggregation query to sort at source instead of sorting here
-    params = {
-        "query": f'{{service_module="{checked_stream}",level=~"{"|".join([level_map[level] for level in checked_levels])}"}}',
-        "start": start_time.isoformat(),
-        "end": (start_time + datetime.timedelta(days=1)).isoformat(),
-        "direction": "forward",
-        "limit": 1000,
-    }
-    logger.debug(f"log query params: {params}")
     logs = []
-    async with aiohttp.ClientSession() as session:
-        async with session.get(
-            "http://loki.docker.local:3100/loki/api/v1/query_range", params=params
-        ) as resp:
-            if resp.status == 200:
-                resp_body = await resp.json()
-                raw_logs = resp_body["data"]["result"]
-                merged_logs = functools.reduce(reduce_logs, raw_logs, [])
-                merged_logs.sort(key=lambda x: x[0])
-                logs = [
-                    (
-                        datetime.datetime.fromtimestamp(int(entry[0]) / 1000000000),
-                        entry[1],
-                    )
-                    for entry in merged_logs
-                ]
-            else:
-                logger.error(
-                    f"Log query returned status:{resp.status} for url: {resp.request_info.url}"
-                )
+        
+    if checked_stream is not None:
+        # TODO: could use sort metic aggregation query to sort at source instead of sorting here
+        params = {
+            "query": f'{{service_module="{checked_stream}",level=~"{"|".join([level_map[level] for level in checked_levels])}"}}',
+            "start": start_time.isoformat(),
+            "end": (start_time + datetime.timedelta(days=1)).isoformat(),
+            "direction": "forward",
+            "limit": 1000,
+        }
+        logger.debug(f"log query params: {params}")
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    "http://loki.docker.local:3100/loki/api/v1/query_range", params=params
+                ) as resp:
+                    if resp.status == 200:
+                        resp_body = await resp.json()
+                        raw_logs = resp_body["data"]["result"]
+                        merged_logs = functools.reduce(reduce_logs, raw_logs, [])
+                        merged_logs.sort(key=lambda x: x[0])
+                        logs = [
+                            (
+                                datetime.datetime.fromtimestamp(int(entry[0]) / 1000000000),
+                                entry[1],
+                            )
+                            for entry in merged_logs
+                        ]
+                    else:
+                        logger.error(
+                            f"Log query returned status:{resp.status} for url: {resp.request_info.url}"
+                        )
+        except aiohttp.client_exceptions.ClientError:
+            pass
 
     return {
         "streams": streams,
