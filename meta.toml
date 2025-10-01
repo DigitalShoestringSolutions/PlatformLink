@@ -4,5 +4,5 @@
     compose_partial = "snippet.yml"
     volume.data.path = "/app/data"
     volume.user_config.ignore = true
-    ports.ui = 80
+    ports.ui = 5000
     
